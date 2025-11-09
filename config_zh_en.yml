@@ -3,3 +3,5 @@ model_dir: run/zh-en/
 data:
   train_features_file: data/zh-en/train.zh
   train_labels_file: data/zh-en/train.en
+  source_vocabulary: data/zh-en/vocab.zh
+  target_vocabulary: data/zh-en/vocab.en
