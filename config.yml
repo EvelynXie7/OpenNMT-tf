@@ -1,0 +1,5 @@
+model_dir: run/
+
+data:
+  train_features_file: data/train.zh
+  train_labels_file: data/train.en
