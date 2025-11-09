@@ -1,12 +1,11 @@
-# prepare_Chinese_dataset.py
 from datasets import load_dataset
 import os
 
-os.makedirs("data", exist_ok=True)
+os.makedirs("data/zh-en", exist_ok=True)
 dataset = load_dataset("swaption2009/20k-en-zh-translation-pinyin-hsk")
 
-with open("data/train.zh", "w", encoding="utf-8") as f_zh, \
-     open("data/train.en", "w", encoding="utf-8") as f_en:
+with open("data/zh-en/train.zh", "w", encoding="utf-8") as f_zh, \
+     open("data/zh-en/train.en", "w", encoding="utf-8") as f_en:
     for item in dataset['train']:
         lines = item['text'].split('\n')
         english = mandarin = None
@@ -21,4 +20,4 @@ with open("data/train.zh", "w", encoding="utf-8") as f_zh, \
             f_zh.write(mandarin + "\n")
             f_en.write(english + "\n")
 
-print("Done! Created data/train.zh and data/train.en")
+print("Done! Created data/zh-en/train.zh and data/zh-en/train.en")
