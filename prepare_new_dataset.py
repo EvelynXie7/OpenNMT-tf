@@ -61,7 +61,7 @@ def main():
             split='train'
         )
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n Error: {e}")
         return 1
     
     print(f"✓ Loaded {len(dataset):,} pairs")
@@ -126,11 +126,6 @@ def main():
     print(f"  Train: {len(train_pairs):,} pairs")
     print(f"  Valid: {len(valid_pairs):,} pairs")
     print(f"  Test:  {len(test_pairs):,} pairs")
-    print(f"\n📝 Config should reference:")
-    print(f"   train_features_file: {args.output_dir}/train.en")
-    print(f"   train_labels_file:   {args.output_dir}/train.zh")
-    print(f"   eval_features_file:  {args.output_dir}/valid.en")
-    print(f"   eval_labels_file:    {args.output_dir}/valid.zh")
     
     return 0
 
