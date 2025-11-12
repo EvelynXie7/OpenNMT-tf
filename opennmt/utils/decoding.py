@@ -29,7 +29,9 @@ class Sampler(abc.ABC):
 
     @staticmethod
     def from_params(params):
-        """Constructs a sampler based on user parameters.
+        
+        """ Constructs a sampler based on user parameters.
+        Modified to enable top-p sampling.
 
         Args:
           params: A dictionary of user parameters.
@@ -38,11 +40,20 @@ class Sampler(abc.ABC):
           A :class:`opennmt.utils.Sampler` instance.
         """
         sampling_topk = params.get("sampling_topk", 1)
-        if sampling_topk == 1:
-            return BestSampler()
-        else:
+        sampling_topp = params.get("sampling_topp", None)
+        
+        if sampling_topp is not None:
+            return NucleusSampler(
+                p=sampling_topp,
+                temperature=params.get("sampling_temperature", 1.0)
+            )
+        elif sampling_topk != 1:
             return RandomSampler(
-                from_top_k=sampling_topk, temperature=params.get("sampling_temperature")
+                from_top_k=sampling_topk,
+                temperature=params.get("sampling_temperature")
+            )
+        else:
+            return BestSampler()
             )
 
 
@@ -74,7 +85,74 @@ class RandomSampler(Sampler):
             sample_ids = _gather_from_word_indices(top_ids, sample_ids)
         sample_scores = _gather_from_word_indices(scores, sample_ids)
         return sample_ids, sample_scores
+    
+class NucleusSampler(Sampler):
+    """Nucleus sampling (top-p) 
+    
+    Filters tokens by setting logits outside nucleus to -inf.
+    Stays in logit space (no epsilon needed).
+    
+    Based on: https://github.com/tensorflow/models
+    """
 
+    def __init__(self, p=0.9, temperature=1.0):
+        """Initialize nucleus sampler.
+        
+        Args:
+          p: Keep smallest set of tokens with cumulative probability >= p
+          temperature: Sampling temperature (higher = more random)
+        """
+        if p <= 0 or p > 1.0:
+            raise ValueError(f"p must be in (0, 1.0], got {p}")
+        self.p = p
+        self.temperature = temperature
+
+    def __call__(self, scores, num_samples=1):
+        """Sample from nucleus distribution.
+        
+        Args:
+          scores: Logits [batch_size, vocab_size]
+          num_samples: Number of samples per batch
+        
+        Returns:
+          (sample_ids, sample_scores) tuple
+        """
+        # Apply temperature
+        if self.temperature != 1.0:
+            scores = scores / self.temperature
+        
+        # Sort logits descending
+        sorted_logits, sorted_indices = tf.nn.top_k(
+            scores, k=tf.shape(scores)[-1], sorted=True
+        )
+        
+        # Compute cumulative probabilities
+        cumulative_probs = tf.cumsum(
+            tf.nn.softmax(sorted_logits, axis=-1), axis=-1
+        )
+        
+        # Mask tokens with cumsum > p
+        sorted_mask = cumulative_probs > self.p
+        
+        # Shift to keep first token above threshold
+        sorted_mask = tf.concat([
+            tf.zeros_like(sorted_mask[:, :1]),  # Always keep top token
+            tf.roll(sorted_mask, 1, axis=-1)[:, 1:]  # Shift rest
+        ], axis=-1)
+        
+        # Map mask back to original vocab order
+        mask = _scatter_values_on_batch_indices(sorted_mask, sorted_indices)
+        
+        # Set filtered logits to -inf
+        filtered_scores = _set_tensor_by_indices_to_value(
+            scores, mask, -float('inf')
+        )
+        
+        # Sample from filtered logits
+        sample_ids = _sample_from(filtered_scores, num_samples)
+        sample_scores = _gather_from_word_indices(scores, sample_ids)
+        
+        return sample_ids, sample_scores
 
 class BestSampler(Sampler):
     """Sample the best predictions."""
@@ -671,6 +749,8 @@ def _lengths_from_ids(ids, end_id):
     return lengths
 
 
+
+
 # The gather_tree functions are imported from TensorFlow Addons:
 # https://github.com/tensorflow/addons/blob/master/tensorflow_addons/seq2seq/beam_search_decoder.py
 #
@@ -795,3 +875,25 @@ def _gather_tree_from_array(t, parent_ids, sequence_length):
     ordered = tf.reshape(ordered, final_shape)
 
     return ordered
+
+def _scatter_values_on_batch_indices(values, batch_indices):
+    """Map values from sorted positions back to original vocabulary positions.
+    
+    Example: If sorted_indices=[3,0,2,1], maps sorted values back to original order.
+    """
+    batch_size = tf.shape(batch_indices)[0]
+    vocab_size = tf.shape(batch_indices)[1]
+    
+    # Create [batch, vocab] indices for scatter
+    batch_dims = tf.expand_dims(tf.range(batch_size, dtype=tf.int32), 1)
+    batch_dims = tf.tile(batch_dims, [1, vocab_size])
+    scatter_indices = tf.stack([batch_dims, batch_indices], axis=2)
+    
+    # Scatter to original positions
+    return tf.scatter_nd(scatter_indices, values, [batch_size, vocab_size])
+
+
+def _set_tensor_by_indices_to_value(input_tensor, indices, value):
+    """Set input_tensor to value where indices is True."""
+    value_tensor = tf.fill(tf.shape(input_tensor), value)
+    return tf.where(indices, value_tensor, input_tensor)
