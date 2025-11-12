@@ -52,3 +52,7 @@ eval:
     metric: bleu
     min_improvement: 0.1      # require +0.1 BLEU improvement
     steps: 5                  # patience = 5 evals without improvement
+    
+infer:
+  batch_type: tokens
+  batch_size: 256
