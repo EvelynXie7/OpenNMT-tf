@@ -1,15 +1,24 @@
-"""Download and prepare nmt-parallel-corpus (en-zh).
-
-Creates three splits:
-- train: for training (goes in config)
-- valid: for validation during training (goes in config as eval_*)
-- test: for final evaluation after training (NOT in config, used separately)
-"""
+"""Download and prepare nmt-parallel-corpus (en-zh)."""
 
 from datasets import load_dataset
+from huggingface_hub import login
 import os
 import random
 import argparse
+
+
+def authenticate(token):
+    """Authenticate with Hugging Face."""
+    if token:
+        login(token=token)
+        return token
+    
+    token = os.environ.get('HF_TOKEN')
+    if token:
+        login(token=token)
+        return token
+    
+    return None
 
 
 def save_split(pairs, prefix, output_dir):
@@ -29,20 +38,20 @@ def save_split(pairs, prefix, output_dir):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output_dir', default='data/en-zh-new')
-    parser.add_argument('--train_size', type=int, default=2000000)
-    parser.add_argument('--valid_size', type=int, default=200000)
-    parser.add_argument('--test_size', type=int, default=10000)
+    parser.add_argument('--train_size', type=int, default=4900000)
+    parser.add_argument('--valid_size', type=int, default=5000)
+    parser.add_argument('--test_size', type=int, default=50000)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--token', type=str, default=None)
     args = parser.parse_args()
     
-    token = args.token or os.environ.get('HF_TOKEN')
     os.makedirs(args.output_dir, exist_ok=True)
     
-
-    if not token:
-        print("⚠️  Gated dataset - authenticate first:")
-        print("   huggingface-cli login\n")
+    print("="*70)
+    print("DOWNLOADING DATASET")
+    print("="*70)
+    
+    token = authenticate(args.token)
     
     try:
         dataset = load_dataset(
@@ -52,25 +61,37 @@ def main():
             split='train'
         )
     except Exception as e:
-  
-        print("\nRun: huggingface-cli login")
+        print(f"\n❌ Error: {e}")
         return 1
     
     print(f"✓ Loaded {len(dataset):,} pairs")
+    print(f"Columns: {dataset.column_names}")
     
     # Extract and shuffle
-    total_needed = args.train_size + args.valid_size + args.test_size  
+    total_needed = args.train_size + args.valid_size + args.test_size
     
     print(f"\nExtracting {total_needed:,} pairs...")
     pairs = []
+    skipped = 0
+    
     for i, ex in enumerate(dataset):
-        pairs.append((ex['en'], ex['zh']))
+        # Use correct column names: src_txt and tgt_txt
+        en_text = ex['src_txt']
+        zh_text = ex['tgt_txt']
+        
+        # Skip empty pairs
+        if en_text and zh_text and len(en_text.strip()) > 0 and len(zh_text.strip()) > 0:
+            pairs.append((en_text, zh_text))
+        else:
+            skipped += 1
+        
         if len(pairs) >= total_needed:
             break
-        if (i + 1) % 500000 == 0:
-            print(f"  {i+1:,}...")
+        
+        if (i + 1) % 1000000 == 0:
+            print(f"  Processed {i+1:,}, extracted {len(pairs):,} valid pairs (skipped {skipped:,})...")
     
-    print(f"✓ Extracted {len(pairs):,} pairs")
+    print(f"✓ Extracted {len(pairs):,} valid pairs (skipped {skipped:,} empty)")
     
     random.seed(args.seed)
     random.shuffle(pairs)
@@ -85,19 +106,21 @@ def main():
     test_pairs = pairs[valid_end:]
     
     # Save
-   
+    print("\n" + "="*70)
+    print("SAVING SPLITS")
+    print("="*70)
     
-    print("\n✏️  TRAIN (used in config: train_features_file/train_labels_file)")
+    print("\n✏️  TRAIN (config: train_features_file/train_labels_file)")
     save_split(train_pairs, 'train', args.output_dir)
     
-    print("\n✏️  VALID (used in config: eval_features_file/eval_labels_file)")
+    print("\n✏️  VALID (config: eval_features_file/eval_labels_file)")
     save_split(valid_pairs, 'valid', args.output_dir)
     
-    print("\n✏️  TEST (NOT in config - used after training for final eval)")
+    print("\n✏️  TEST (used after training)")
     save_split(test_pairs, 'test', args.output_dir)
     
     # Summary
-   
+
     print(f"\nCreated in: {args.output_dir}/")
     print(f"\nSplit sizes:")
     print(f"  Train: {len(train_pairs):,} pairs")
@@ -108,10 +131,6 @@ def main():
     print(f"   train_labels_file:   {args.output_dir}/train.zh")
     print(f"   eval_features_file:  {args.output_dir}/valid.en")
     print(f"   eval_labels_file:    {args.output_dir}/valid.zh")
-    print(f"\n📊 After training, evaluate on test:")
-    print(f"   onmt-main --config config.yml infer \\")
-    print(f"     --features_file {args.output_dir}/test.en \\")
-    print(f"     --predictions_file outputs/test_pred.zh")
     
     return 0
 
