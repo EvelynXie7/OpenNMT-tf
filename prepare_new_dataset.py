@@ -106,9 +106,7 @@ def main():
     test_pairs = pairs[valid_end:]
     
     # Save
-    print("\n" + "="*70)
-    print("SAVING SPLITS")
-    print("="*70)
+    
     
     print("\n✏️  TRAIN (config: train_features_file/train_labels_file)")
     save_split(train_pairs, 'train', args.output_dir)
