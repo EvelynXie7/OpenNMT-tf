@@ -41,15 +41,5 @@ train:
   save_summary_steps: 100
   max_step: 300000           # early stopping will halt earlier if BLEU stalls
 
-# evaluation 
-eval:
-  steps: 2000                 # evaluate every N train steps
-  batch_type: tokens
-  batch_size: 2048
-  scorers: bleu               # compute BLEU on valid set
-  export_on_best: bleu        # auto-export best model
-  early_stopping:             # stop when BLEU stops improving
-    metric: bleu
-    min_improvement: 0.1      # require +0.1 BLEU improvement
-    steps: 5                  # patience = 5 evals without improvement
+
 
