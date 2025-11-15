@@ -1,0 +1,40 @@
+model_type: Transformer
+model_dir: runs/enzh_fresh
+auto_config: true
+
+data:
+  train_features_file: data/en-zh-fresh/train.en
+  train_labels_file:   data/en-zh-fresh/train.zh
+  eval_features_file:  data/en-zh-fresh/valid.en
+  eval_labels_file:    data/en-zh-fresh/valid.zh
+  
+  source_vocabulary: data/en-zh-fresh/en.vocab
+  target_vocabulary: data/en-zh-fresh/zh.vocab
+
+params:
+  optimizer: Adam
+  learning_rate: 2.0
+  decay_type: NoamDecay
+  decay_params: { model_dim: 512, warmup_steps: 8000 }
+  label_smoothing: 0.1
+  beam_width: 4
+  maximum_decoding_length: 256
+
+train:
+  batch_type: tokens
+  batch_size: 4096
+  maximum_features_length: 256
+  maximum_labels_length: 256
+  save_checkpoints_steps: 2000
+  keep_checkpoint_max: 8
+  save_summary_steps: 100
+  max_step: 300000
+
+eval:
+  steps: 2000
+  batch_size: 32
+
+infer:
+  batch_size: 32
+  bucket_width: 5
+  length_penalty: 0.6
