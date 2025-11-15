@@ -54,8 +54,6 @@ class Sampler(abc.ABC):
             )
         else:
             return BestSampler()
-            )
-
 
 class RandomSampler(Sampler):
     """Randomly samples from model outputs."""
