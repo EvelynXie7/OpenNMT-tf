@@ -1,0 +1,4 @@
+params:
+  beam_width: 1         
+  sampling_topp: 0.97
+  sampling_temperature: 50

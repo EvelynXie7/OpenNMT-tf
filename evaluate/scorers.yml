@@ -1,0 +1,4 @@
+eval: 
+  scorers: 
+    - chrf
+    - bleu
