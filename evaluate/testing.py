@@ -45,25 +45,11 @@ runners = {
     name: Runner(model, merge_config(model_config, config)) 
     for name, config in dec_configs
 }
-config_1 = load_config([eval_yml, dec_ymls[-1]])
-config_2 = load_config([eval_yml, dec_ymls[8]])
-print(Runner(model, merge_config(model_config, config_1)).evaluate())
-print(Runner(model, merge_config(model_config, config_2)).evaluate())
-
-results = {}
-
-for decoding_method in runners: 
-    results[name] = runners[decoding_method].evaluate()
-
-
-#results["greedy"] = runner_greedy.evaluate()
-#results["top_5"] = runner_top_5.evaluate()
-#results["beam"] = runner_beam.evaluate()
-#results["inc_beam_2"] = runner_inc_beam_2.evaluate()
-#results["inc_beam_4"] = runner_inc_beam_4.evaluate()
-#results["inc_beam_6"] = runner_inc_beam_6.evaluate()
-#
-#print(results)
 
 with open("results.json", "w") as json_file: 
-    json.dump(results, json_file, indent=4)
+    for decoding_method in runners: 
+        result = str({decoding_method: runners[decoding_method].evaluate()})
+        result = decoding_method
+        print(result)
+        json_file.write(result)
+        json_file.write('\n')

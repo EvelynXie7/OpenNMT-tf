@@ -193,17 +193,25 @@ class DecodingStrategy(abc.ABC):
                 max_beam_size, 
                 inc_rate
             )
-        if beam_size > 1:
-            return BeamSearch(
-                beam_size,
-                length_penalty=params.get("length_penalty", 0),
-                coverage_penalty=params.get("coverage_penalty", 0),
-                tflite_output_size=params.get("tflite_output_size", 250)
-                if tflite_mode
-                else None,
+        elif inc_rate < 0: 
+            return DecrementalBeamSearch(
+                min_beam_size,
+                max_beam_size, 
+                inc_rate
             )
-        else:
-            return GreedySearch()
+            pass
+        else: 
+            if beam_size > 1:
+                return BeamSearch(
+                    beam_size,
+                    length_penalty=params.get("length_penalty", 0),
+                    coverage_penalty=params.get("coverage_penalty", 0),
+                    tflite_output_size=params.get("tflite_output_size", 250)
+                    if tflite_mode
+                    else None,
+                )
+            else:
+                return GreedySearch()
 
     @abc.abstractmethod
     def initialize(self, start_ids, attention_size=None):
@@ -567,7 +575,157 @@ class IncrementalBeamSearch(DecodingStrategy):
         parent_ids = kwargs["parent_ids"]
         sequence_lengths = kwargs["sequence_lengths"]
         current_beam_size = min(
-                self.min_beam_size + step * self.rate, self.max_beam_size
+            int(self.min_beam_size + step * self.rate), self.max_beam_size
+        )
+
+        # Compute scores from log probabilities.
+        vocab_size = log_probs.shape[-1]
+
+        # create mask to kill of unused beams
+        reshaped_cum_log_probs = tf.reshape(cum_log_probs, [-1, self.max_beam_size])
+        _, indicies = tf.nn.top_k(reshaped_cum_log_probs, k=current_beam_size, sorted=True) # select only top k indices to keep
+        one_hot_mask = tf.one_hot(indices, depth=self.max_beam_size, dtype=cum_log_probs.dtype)
+        binary_mask = tf.reduce_sum(one_hot_mask, axis=1)
+        masked_cum_log_probs_reshaped = tf.where(
+            tf.cast(binary_mask, tf.bool),
+            reshaped_cum_log_probs,
+            -float("inf")
+        )
+        masked_cum_log_probs = tf.reshape(masked_cum_log_probs_reshaped, [-1])
+
+        # Add current beam probability to the masked probability
+        total_probs = log_probs + tf.expand_dims(masked_cum_log_probs, 1)  
+
+        scores = tf.reshape(total_probs, [-1, self.max_beam_size * vocab_size])
+        total_probs = tf.reshape(total_probs, [-1, self.max_beam_size * vocab_size])
+
+        # Sample predictions.
+        sample_ids, sample_scores = sampler(scores, num_samples=self.max_beam_size)
+        cum_log_probs = tf.reshape(
+            _gather_from_word_indices(total_probs, sample_ids), [-1]
+        )
+        sample_ids = tf.reshape(sample_ids, [-1])
+        sample_scores = tf.reshape(sample_scores, [-1])
+
+        # Resolve beam origin and word ids.
+        word_ids = sample_ids % vocab_size
+        beam_ids = sample_ids // vocab_size
+        beam_indices = (
+            tf.range(tf.shape(word_ids)[0]) // self.max_beam_size
+        ) * self.max_beam_size + beam_ids
+
+        # Update sequence_length of unfinished sequence.
+        sequence_lengths = tf.where(
+            finished, x=sequence_lengths, y=sequence_lengths + 1
+        )
+
+        # Update state and flags.
+        finished = tf.gather(finished, beam_indices)
+        sequence_lengths = tf.gather(sequence_lengths, beam_indices)
+        parent_ids = parent_ids.write(step, beam_ids)
+        extra_vars = {
+            "parent_ids": parent_ids,
+            "sequence_lengths": sequence_lengths,
+        }
+
+        if state is not None:
+            state = _reorder_state(
+                state, beam_indices, reorder_flags=self._state_reorder_flags
+            )
+
+        return word_ids, cum_log_probs, finished, state, extra_vars
+
+    def finalize(self, outputs, end_id, attention=None, **kwargs):
+        parent_ids = kwargs["parent_ids"]
+        sequence_lengths = kwargs["sequence_lengths"]
+        maximum_lengths = tf.reduce_max(
+            tf.reshape(sequence_lengths, [-1, self.max_beam_size]), axis=-1
+        )
+        max_time = outputs.size()
+        array_shape = [max_time, -1, self.max_beam_size]
+        step_ids = tf.reshape(outputs.stack(), array_shape)
+        parent_ids = tf.reshape(parent_ids.stack(), array_shape)
+        ids = _gather_tree(step_ids, parent_ids, maximum_lengths, end_id)
+        ids = tf.transpose(ids, perm=[1, 2, 0])
+        lengths = _lengths_from_ids(ids, end_id)
+
+        if attention is not None:
+            attention = _gather_tree_from_array(attention.stack(), parent_ids, lengths)
+            attention = tf.transpose(attention, perm=[1, 0, 2])
+            attention = tf.reshape(
+                attention, [tf.shape(ids)[0], self.max_beam_size, max_time, -1]
+            )
+
+        return ids, attention, lengths
+
+class DecrementalBeamSearch(DecodingStrategy):
+    """
+    Based on BeamSearch from above. A modified version of beam search, where 
+    the width of the beam increases from min_beam_size to max_beam_size with 
+    user specified rate.
+
+    See https://www.sciencedirect.com/science/article/pii/S0020019013002391
+    """
+
+    def __init__(
+        self, min_beam_size, max_beam_size, rate
+    ):
+        """Initializes the decoding strategy.
+
+        Args:
+          min_beam_size: The starting number of paths to consider per batch.
+          max_beam_size: The max number of paths to consider per batch.
+          rate: the rate at which the beam_size is incremented 
+        """
+        self.min_beam_size = min_beam_size
+        self.max_beam_size = max_beam_size
+        self.rate = rate
+        self._state_reorder_flags = None
+
+    @property
+    def num_hypotheses(self):
+        return self.max_beam_size
+
+    def _set_state_reorder_flags(self, state_reorder_flags):
+        """Sets state reorder flags, a structure matching the decoder state that
+        indicates which tensor should be reorded during beam search.
+        """
+        self._state_reorder_flags = state_reorder_flags
+
+    def initialize(self, start_ids, attention_size=None):
+        batch_size = tf.shape(start_ids)[0]
+        start_ids = tfa.seq2seq.tile_batch(start_ids, self.max_beam_size)
+        finished = tf.zeros([batch_size * self.max_beam_size], dtype=tf.bool)
+
+        # Give all probability to first beam for the first iteration.
+        initial_log_probs = tf.tile(
+            [0.0] + [-float("inf")] * (self.max_beam_size - 1), [batch_size]
+        )
+
+        parent_ids = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
+
+        extra_vars = {
+            "parent_ids": parent_ids,
+            "sequence_lengths": tf.zeros([batch_size * self.max_beam_size], dtype=tf.int32)
+        }
+
+        return start_ids, finished, initial_log_probs, extra_vars
+
+    def step(
+        self,
+        step,
+        sampler,
+        log_probs,
+        cum_log_probs,
+        finished,
+        state=None,
+        attention=None,
+        **kwargs
+    ):
+        parent_ids = kwargs["parent_ids"]
+        sequence_lengths = kwargs["sequence_lengths"]
+        current_beam_size = max(
+            self.max_beam_size + int(step * self.rate), self.min_beam_size
         )
 
         # Compute scores from log probabilities.

@@ -1,4 +1,4 @@
 params:
-  min_beam_width: 10
+  min_beam_width: 7
   max_beam_width: 1
   inc_rate: -0.4
