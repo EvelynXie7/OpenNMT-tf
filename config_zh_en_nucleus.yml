@@ -7,6 +7,6 @@ data:
   target_vocabulary: data/zh-en/vocab.en
 
 inference:
-  beam_width: 1              # use GreedySearch (one hypothesis)
-  sampling_topp: 0.97         # <== THIS turns on NucleusSampler
-  sampling_temperature: 1.5  # optional, can tweak later
+  beam_width: 1              
+  sampling_topp: 0         
+  sampling_temperature: 1.5  
