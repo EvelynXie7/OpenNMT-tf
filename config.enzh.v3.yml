@@ -8,3 +8,9 @@ data:
   eval_labels_file: data/en-zh-v3/valid.zh
   source_vocabulary: data/en-zh-v3/vocab.en
   target_vocabulary: data/en-zh-v3/vocab.zh
+
+
+source_tokenization:
+  type: SpaceTokenizer    # splits English by whitespace (safe)
+target_tokenization:
+  type: SpaceTokenizer    # splits Chinese by whitespace 
