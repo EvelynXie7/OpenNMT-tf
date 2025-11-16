@@ -6,7 +6,8 @@ data:
   source_vocabulary: data/zh-en/vocab.zh
   target_vocabulary: data/zh-en/vocab.en
 
-inference:
-  beam_width: 1              
-  sampling_topp: 0         
-  sampling_temperature: 1.5  
+params:
+ 
+  beam_width: 1         
+  sampling_topp: 0.97
+  sampling_temperature: 1.5
