@@ -55,11 +55,12 @@ class Sampler(abc.ABC):
             )
         else:
             return BestSampler()
-        """
+        
         return NucleusSampler(
                 p=sampling_topp,
                 temperature=params.get("sampling_temperature", 1.0)
-            )
+            )"""
+        return None
 
 class RandomSampler(Sampler):
     """Randomly samples from model outputs."""
