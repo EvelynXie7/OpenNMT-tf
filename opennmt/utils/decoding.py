@@ -123,7 +123,7 @@ class NucleusSampler(Sampler):
         sorted_logits, sorted_indices = tf.nn.top_k(
             scores, k=tf.shape(scores)[-1], sorted=True
         )
-        
+        "THIS IS SOME BORING TEXT TO CONFIRM IT IS REALLY BEING USED. SORRY I DID NOT COME UP WITH A BETTER WAY TO DO SO...."
         # Compute cumulative probabilities
         cumulative_probs = tf.cumsum(
             tf.nn.softmax(sorted_logits, axis=-1), axis=-1
