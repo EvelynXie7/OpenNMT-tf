@@ -82,6 +82,10 @@ class RandomSampler(Sampler):
             )
             sample_ids = _gather_from_word_indices(top_ids, sample_ids)
         sample_scores = _gather_from_word_indices(scores, sample_ids)
+        
+        print("THIS IS SOME BORING TEXT TO CONFIRM IT IS NOOOOOOT BEING USED. SORRY I DID NOT COME UP WITH A BETTER WAY TO DO SO....")
+        
+        
         return sample_ids, sample_scores
     
 class NucleusSampler(Sampler):
@@ -123,7 +127,7 @@ class NucleusSampler(Sampler):
         sorted_logits, sorted_indices = tf.nn.top_k(
             scores, k=tf.shape(scores)[-1], sorted=True
         )
-        "THIS IS SOME BORING TEXT TO CONFIRM IT IS REALLY BEING USED. SORRY I DID NOT COME UP WITH A BETTER WAY TO DO SO...."
+        print("THIS IS SOME BORING TEXT TO CONFIRM IT IS REALLY BEING USED. SORRY I DID NOT COME UP WITH A BETTER WAY TO DO SO....")
         # Compute cumulative probabilities
         cumulative_probs = tf.cumsum(
             tf.nn.softmax(sorted_logits, axis=-1), axis=-1
