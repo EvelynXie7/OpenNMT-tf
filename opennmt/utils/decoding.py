@@ -42,6 +42,7 @@ class Sampler(abc.ABC):
         sampling_topk = params.get("sampling_topk", 1)
         sampling_topp = params.get("sampling_topp", None)
         
+        """
         if sampling_topp is not None:
             return NucleusSampler(
                 p=sampling_topp,
@@ -54,6 +55,11 @@ class Sampler(abc.ABC):
             )
         else:
             return BestSampler()
+        """
+        return NucleusSampler(
+                p=sampling_topp,
+                temperature=params.get("sampling_temperature", 1.0)
+            )
 
 class RandomSampler(Sampler):
     """Randomly samples from model outputs."""
