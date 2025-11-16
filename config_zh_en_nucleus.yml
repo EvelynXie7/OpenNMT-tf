@@ -8,5 +8,5 @@ data:
 
 inference:
   beam_width: 1              # use GreedySearch (one hypothesis)
-  sampling_topp: 0.9         # <== THIS turns on NucleusSampler
-  sampling_temperature: 1.0  # optional, can tweak later
+  sampling_topp: 0.97         # <== THIS turns on NucleusSampler
+  sampling_temperature: 1.5  # optional, can tweak later
