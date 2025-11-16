@@ -3,14 +3,14 @@ model_dir: runs/enzh-v3/
 
 data:
   train_features_file: data/en-zh-v3/train.en
-  train_labels_file: data/en-zh-v3/train.zh
+  train_labels_file: data/en-zh-v3/train.zh.tok
   eval_features_file: data/en-zh-v3/valid.en
-  eval_labels_file: data/en-zh-v3/valid.zh
+  eval_labels_file: data/en-zh-v3/valid.zh.tok
   source_vocabulary: data/en-zh-v3/vocab.en
-  target_vocabulary: data/en-zh-v3/vocab.zh
+  target_vocabulary: data/en-zh-v3/vocab.zh.tok
 
 
 source_tokenization:
-  type: SpaceTokenizer    # splits English by whitespace (safe)
+  type: SpaceTokenizer    # splits English by whißtespace (safe)
 target_tokenization:
   type: SpaceTokenizer    # splits Chinese by whitespace 
