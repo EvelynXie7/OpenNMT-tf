@@ -501,10 +501,16 @@ class BeamSearch(DecodingStrategy):
         return ids, attention, lengths
 
 class IncrementalBeamSearch(DecodingStrategy):
-    """Based on BeamSearch from above. A beam search strategy."""
+    """
+    Based on BeamSearch from above. A modified version of beam search, where 
+    the width of the beam increases from min_beam_size to max_beam_size with 
+    user specified rate.
+
+    See https://www.sciencedirect.com/science/article/pii/S0020019013002391
+    """
 
     def __init__(
-        self, min_beam_size=1, max_beam_size, rate
+        self, min_beam_size, max_beam_size, rate
     ):
         """Initializes the decoding strategy.
 
