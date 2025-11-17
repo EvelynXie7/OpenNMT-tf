@@ -583,7 +583,7 @@ class IncrementalBeamSearch(DecodingStrategy):
 
         # create mask to kill of unused beams
         reshaped_cum_log_probs = tf.reshape(cum_log_probs, [-1, self.max_beam_size])
-        _, indicies = tf.nn.top_k(reshaped_cum_log_probs, k=current_beam_size, sorted=True) # select only top k indices to keep
+        _, indices = tf.nn.top_k(reshaped_cum_log_probs, k=current_beam_size, sorted=True) # select only top k indices to keep
         one_hot_mask = tf.one_hot(indices, depth=self.max_beam_size, dtype=cum_log_probs.dtype)
         binary_mask = tf.reduce_sum(one_hot_mask, axis=1)
         masked_cum_log_probs_reshaped = tf.where(
@@ -733,7 +733,7 @@ class DecrementalBeamSearch(DecodingStrategy):
 
         # create mask to kill of unused beams
         reshaped_cum_log_probs = tf.reshape(cum_log_probs, [-1, self.max_beam_size])
-        _, indicies = tf.nn.top_k(reshaped_cum_log_probs, k=current_beam_size, sorted=True) # select only top k indices to keep
+        _, indices = tf.nn.top_k(reshaped_cum_log_probs, k=current_beam_size, sorted=True) # select only top k indices to keep
         one_hot_mask = tf.one_hot(indices, depth=self.max_beam_size, dtype=cum_log_probs.dtype)
         binary_mask = tf.reduce_sum(one_hot_mask, axis=1)
         masked_cum_log_probs_reshaped = tf.where(
