@@ -548,6 +548,7 @@ class IncrementalBeamSearch(DecodingStrategy):
         finished = tf.zeros([batch_size * self.max_beam_size], dtype=tf.bool)
 
         # Give all probability to first beam for the first iteration.
+        # this tensor is where log_prob will cumulate
         initial_log_probs = tf.tile(
             [0.0] + [-float("inf")] * (self.max_beam_size - 1), [batch_size]
         )
@@ -582,18 +583,25 @@ class IncrementalBeamSearch(DecodingStrategy):
         vocab_size = log_probs.shape[-1]
 
         # create mask to kill of unused beams
-        reshaped_cum_log_probs = tf.reshape(cum_log_probs, [-1, self.max_beam_size])
-        _, indices = tf.nn.top_k(reshaped_cum_log_probs, k=current_beam_size, sorted=True) # select only top k indices to keep
-        one_hot_mask = tf.one_hot(indices, depth=self.max_beam_size, dtype=cum_log_probs.dtype)
+        # cum_log_probs has shape [batch_size, self.max_beam_size]
+        # indicies should have shape [batch_size, current_beam_size] 
+        _, indices = tf.nn.top_k(cum_log_probs, k=current_beam_size, sorted=True) # select only top k indices of the beam per hypothesis in the batch
+        
+        # creates one hot vector representation of the indices
+        one_hot_mask = tf.one_hot(indices, depth=self.max_beam_size, dtype=tf.uint32)
+        # combine the one hot vector representation of the indices  
         binary_mask = tf.reduce_sum(one_hot_mask, axis=1)
-        masked_cum_log_probs_reshaped = tf.where(
+
+        # mask the lob_probs that weren't selected from the index
+        masked_cum_log_probs = tf.where(
             tf.cast(binary_mask, tf.bool),
             reshaped_cum_log_probs,
             -float("inf")
         )
-        masked_cum_log_probs = tf.reshape(masked_cum_log_probs_reshaped, [-1])
-
-        # Add current beam probability to the masked probability
+        
+        # i think log_probs has shape [batch_size, vocab_size, self.max_beam_size]
+        # Add current beam probability to the log_probs to get updated 
+        # hypothesis for all the vocabulary per beam per batch
         total_probs = log_probs + tf.expand_dims(masked_cum_log_probs, 1)  
 
         scores = tf.reshape(total_probs, [-1, self.max_beam_size * vocab_size])
@@ -732,18 +740,23 @@ class DecrementalBeamSearch(DecodingStrategy):
         vocab_size = log_probs.shape[-1]
 
         # create mask to kill of unused beams
-        reshaped_cum_log_probs = tf.reshape(cum_log_probs, [-1, self.max_beam_size])
-        _, indices = tf.nn.top_k(reshaped_cum_log_probs, k=current_beam_size, sorted=True) # select only top k indices to keep
-        one_hot_mask = tf.one_hot(indices, depth=self.max_beam_size, dtype=cum_log_probs.dtype)
+        # cum_log_probs has shape [batch_size, self.max_beam_size]
+        # indicies should have shape [batch_size, current_beam_size] 
+        _, indices = tf.nn.top_k(cum_log_probs, k=current_beam_size, sorted=True) # select only top k indices of the beam per hypothesis in the batch
+        
+        # creates one hot vector representation of the indices
+        one_hot_mask = tf.one_hot(indices, depth=self.max_beam_size, dtype=tf.uint32)
+        # combine the one hot vector representation of the indices  
         binary_mask = tf.reduce_sum(one_hot_mask, axis=1)
-        masked_cum_log_probs_reshaped = tf.where(
+
+        # mask the lob_probs that weren't selected from the index
+        masked_cum_log_probs = tf.where(
             tf.cast(binary_mask, tf.bool),
             reshaped_cum_log_probs,
             -float("inf")
         )
-        masked_cum_log_probs = tf.reshape(masked_cum_log_probs_reshaped, [-1])
 
-        # Add current beam probability to the masked probability
+        # Add current beam probability to 
         total_probs = log_probs + tf.expand_dims(masked_cum_log_probs, 1)  
 
         scores = tf.reshape(total_probs, [-1, self.max_beam_size * vocab_size])

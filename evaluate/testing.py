@@ -2,6 +2,8 @@ from opennmt import load_model, load_config, merge_config, Runner
 import os
 import json
 
+import random
+
 working_dir = "/home/xiee/NLP/OpenNMT-tf"
 
 os.chdir(working_dir)
@@ -18,23 +20,25 @@ eval_yml = f"{evaluation_dir}/scorers.yml"
 
 # decoding strategies 
 dec_ymls = [ 
-    f"{evaluation_dir}/greedy.yml",     # this as base metric
-    f"{evaluation_dir}/top_3.yml",
-    f"{evaluation_dir}/top_5.yml",
-    f"{evaluation_dir}/top_7.yml",
-    f"{evaluation_dir}/top_p_02.yml",
-    f"{evaluation_dir}/top_p_1.yml",
-    f"{evaluation_dir}/top_p_50.yml",
-    f"{evaluation_dir}/beam_3.yml",
-    f"{evaluation_dir}/beam_5.yml",
-    f"{evaluation_dir}/beam_7.yml",
-    f"{evaluation_dir}/inc_beam_2.yml",
-    f"{evaluation_dir}/inc_beam_4.yml",
-    f"{evaluation_dir}/inc_beam_6.yml",
+#    f"{evaluation_dir}/greedy.yml",     # this as base metric
+#    f"{evaluation_dir}/top_3.yml",
+#    f"{evaluation_dir}/top_5.yml",
+#    f"{evaluation_dir}/top_7.yml",
+#    f"{evaluation_dir}/top_p_02.yml",
+#    f"{evaluation_dir}/top_p_1.yml",
+#    f"{evaluation_dir}/top_p_50.yml",
+#    f"{evaluation_dir}/beam_3.yml",
+#    f"{evaluation_dir}/beam_5.yml",
+#    f"{evaluation_dir}/beam_7.yml",
+#    f"{evaluation_dir}/inc_beam_2.yml"
+#    f"{evaluation_dir}/inc_beam_4.yml",
+#    f"{evaluation_dir}/inc_beam_6.yml",
     f"{evaluation_dir}/dec_beam_2.yml",
-    f"{evaluation_dir}/dec_beam_4.yml",
-    f"{evaluation_dir}/dec_beam_6.yml"
+#    f"{evaluation_dir}/dec_beam_4.yml",
+#    f"{evaluation_dir}/dec_beam_6.yml"
 ]
+
+random.shuffle(dec_ymls)
 
 dec_configs = [
     (yml.split('/')[-1].split('.')[0], load_config([eval_yml, yml])) 
@@ -46,10 +50,10 @@ runners = {
     for name, config in dec_configs
 }
 
-with open("results.json", "w") as json_file: 
-    for decoding_method in runners: 
-        result = str({decoding_method: runners[decoding_method].evaluate()})
-        result = decoding_method
-        print(result)
-        json_file.write(result)
-        json_file.write('\n')
+for i in range(0, 1): 
+    with open(f"{evaluation_dir}/results_{i}.jsonl", "a") as file: 
+        for decoding_method in runners: 
+            result = f"{str({'method': decoding_method, 'result': runners[decoding_method].evaluate()})}\n"
+            file.write(result)
+            file.flush()
+            print(result)
