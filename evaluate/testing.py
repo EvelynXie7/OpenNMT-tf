@@ -20,22 +20,22 @@ eval_yml = f"{evaluation_dir}/scorers.yml"
 
 # decoding strategies 
 dec_ymls = [ 
-#    f"{evaluation_dir}/greedy.yml",     # this as base metric
-#    f"{evaluation_dir}/top_3.yml",
-#    f"{evaluation_dir}/top_5.yml",
-#    f"{evaluation_dir}/top_7.yml",
-#    f"{evaluation_dir}/top_p_02.yml",
-#    f"{evaluation_dir}/top_p_1.yml",
-#    f"{evaluation_dir}/top_p_50.yml",
-#    f"{evaluation_dir}/beam_3.yml",
-#    f"{evaluation_dir}/beam_5.yml",
-#    f"{evaluation_dir}/beam_7.yml",
-#    f"{evaluation_dir}/inc_beam_2.yml"
-#    f"{evaluation_dir}/inc_beam_4.yml",
-#    f"{evaluation_dir}/inc_beam_6.yml",
+    f"{evaluation_dir}/greedy.yml",     # this as base metric
+    f"{evaluation_dir}/top_3.yml",
+    f"{evaluation_dir}/top_5.yml",
+    f"{evaluation_dir}/top_7.yml",
+    f"{evaluation_dir}/top_p_02.yml",
+    f"{evaluation_dir}/top_p_1.yml",
+    f"{evaluation_dir}/top_p_50.yml",
+    f"{evaluation_dir}/beam_3.yml",
+    f"{evaluation_dir}/beam_5.yml",
+    f"{evaluation_dir}/beam_7.yml",
+    f"{evaluation_dir}/inc_beam_2.yml",
+    f"{evaluation_dir}/inc_beam_4.yml",
+    f"{evaluation_dir}/inc_beam_6.yml",
     f"{evaluation_dir}/dec_beam_2.yml",
-#    f"{evaluation_dir}/dec_beam_4.yml",
-#    f"{evaluation_dir}/dec_beam_6.yml"
+    f"{evaluation_dir}/dec_beam_4.yml",
+    f"{evaluation_dir}/dec_beam_6.yml"
 ]
 
 random.shuffle(dec_ymls)
@@ -50,7 +50,7 @@ runners = {
     for name, config in dec_configs
 }
 
-for i in range(0, 1): 
+for i in range(0, 10): 
     with open(f"{evaluation_dir}/results_{i}.jsonl", "a") as file: 
         for decoding_method in runners: 
             result = f"{str({'method': decoding_method, 'result': runners[decoding_method].evaluate()})}\n"
