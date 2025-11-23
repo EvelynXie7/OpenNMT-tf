@@ -46,23 +46,16 @@ def main():
     args = parser.parse_args()
     
     os.makedirs(args.output_dir, exist_ok=True)
-    
-    print("="*70)
-    print("DOWNLOADING DATASET")
-    print("="*70)
-    
+
     token = authenticate(args.token)
     
-    try:
-        dataset = load_dataset(
-            "liboaccn/nmt-parallel-corpus",
-            "en-zh",
-            token=token,
-            split='train'
-        )
-    except Exception as e:
-        print(f"\n Error: {e}")
-        return 1
+   
+    dataset = load_dataset(
+        "liboaccn/nmt-parallel-corpus",
+        "en-zh",
+        token=token,
+        split='train'
+   
     
     print(f"✓ Loaded {len(dataset):,} pairs")
     print(f"Columns: {dataset.column_names}")
@@ -70,7 +63,7 @@ def main():
     # Extract and shuffle
     total_needed = args.train_size + args.valid_size + args.test_size
     
-    print(f"\nExtracting {total_needed:,} pairs...")
+
     pairs = []
     skipped = 0
     
@@ -91,11 +84,9 @@ def main():
         if (i + 1) % 1000000 == 0:
             print(f"  Processed {i+1:,}, extracted {len(pairs):,} valid pairs (skipped {skipped:,})...")
     
-    print(f"✓ Extracted {len(pairs):,} valid pairs (skipped {skipped:,} empty)")
-    
     random.seed(args.seed)
     random.shuffle(pairs)
-    print(f"✓ Shuffled (seed={args.seed})")
+
     
     # Split
     train_end = args.train_size
@@ -108,13 +99,9 @@ def main():
     # Save
     
     
-    print("\n✏️  TRAIN (config: train_features_file/train_labels_file)")
+  
     save_split(train_pairs, 'train', args.output_dir)
-    
-    print("\n✏️  VALID (config: eval_features_file/eval_labels_file)")
     save_split(valid_pairs, 'valid', args.output_dir)
-    
-    print("\n✏️  TEST (used after training)")
     save_split(test_pairs, 'test', args.output_dir)
     
     # Summary
