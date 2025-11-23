@@ -1,4 +1,4 @@
 params:
-  min_beam_width: 7
-  max_beam_width: 1
-  inc_rate: -0.6
+  beam_width: 7
+  min_beam_width: 1
+  inc_rate: -0.1 # decrease 1 per 10 steps

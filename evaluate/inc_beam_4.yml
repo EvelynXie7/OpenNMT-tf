@@ -1,4 +1,4 @@
 params:
   min_beam_width: 1
-  max_beam_width: 5
-  inc_rate: 0.4
+  beam_width: 7
+  inc_rate: 0.04 # increase 1 per 25 steps

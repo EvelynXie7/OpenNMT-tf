@@ -2,13 +2,9 @@ import os
 import json
 import pandas as pd
 
-root_dir = "/home/yuc3/OpenNMT-tf/evaluate/results_111725"
+results = "results_0.jsonl"
 
-os.chdir(root_dir)
-
-results = os.listdir(root_dir)
-
-df = pd.concat([pd.read_json(result, lines=True) for result in results])
+df = pd.read_json(results, lines=True)
 
 methods = df['method'].unique()
 
@@ -27,9 +23,8 @@ for method_summary in split_df:
     summary.append(average_dict)
      
 summary_df = pd.DataFrame(summary)
-dropped_loss = summary_df.drop('loss', axis=1)
-final = dropped_loss.drop('perplexity', axis=1)
-method_col = final.pop('method')
-final.insert(0, 'method', method_col)
-
-final.to_csv("summary.csv", index=False)
+method_col = summary_df.pop('method')
+summary_df.insert(0, 'method', method_col)
+print(summary_df)
+#
+#final.to_csv("summary.csv", index=False)
