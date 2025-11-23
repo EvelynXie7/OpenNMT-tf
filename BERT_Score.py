@@ -18,11 +18,6 @@ def main():
     parser.add_argument('--lang', default='en', help='Language for BERTScore')
     args = parser.parse_args()
     
-    print("="*70)
-    print("EVALUATION RESULTS")
-    print("="*70)
-    
-    
     opennmt_metrics = [m for m in args.metrics if m != 'bertscore']
     if opennmt_metrics:
         scorers = make_scorers(opennmt_metrics)
@@ -36,7 +31,7 @@ def main():
     
  
     if 'bertscore' in args.metrics:
-        print("\nComputing BERTScore...")
+        print("\nComputing BERTScore.")
         bertscore = evaluate.load("bertscore")
         refs = read_lines(args.reference)
         hyps = read_lines(args.hypothesis)

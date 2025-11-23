@@ -31,8 +31,7 @@ def save_split(pairs, prefix, output_dir):
         for en, zh in pairs:
             f_en.write(en.strip() + '\n')
             f_zh.write(zh.strip() + '\n')
-    
-    print(f"  ✓ {len(pairs):,} pairs → {prefix}.{{en,zh}}")
+
 
 
 def main():
@@ -47,9 +46,7 @@ def main():
     
     os.makedirs(args.output_dir, exist_ok=True)
     
-    print("="*70)
-    print("DOWNLOADING DATASET")
-    print("="*70)
+
     
     token = authenticate(args.token)
     
@@ -61,16 +58,14 @@ def main():
             split='train'
         )
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\nError: {e}")
         return 1
     
-    print(f"✓ Loaded {len(dataset):,} pairs")
-    print(f"Columns: {dataset.column_names}")
     
     # Extract and shuffle
     total_needed = args.train_size + args.valid_size + args.test_size
     
-    print(f"\nExtracting {total_needed:,} pairs...")
+
     pairs = []
     skipped = 0
     
@@ -86,14 +81,12 @@ def main():
         if len(pairs) >= total_needed:
             break
         
-        if (i + 1) % 1000000 == 0:
-            print(f"  Processed {i+1:,}, extracted {len(pairs):,} valid pairs (skipped {skipped:,})...")
     
-    print(f"✓ Extracted {len(pairs):,} valid pairs (skipped {skipped:,} empty)")
+    
     
     random.seed(args.seed)
     random.shuffle(pairs)
-    print(f"✓ Shuffled (seed={args.seed})")
+    print(f"Shuffled (seed={args.seed})")
     
     # Split
     train_end = args.train_size
@@ -104,21 +97,11 @@ def main():
     test_pairs = pairs[valid_end:]
     
     # Save
-    print("\n✏️  TRAIN")
     save_split(train_pairs, 'train', args.output_dir)
-    
-    print("\n✏️  VALID")
     save_split(valid_pairs, 'valid', args.output_dir)
-    
-    print("\n✏️  TEST")
-    save_split(test_pairs, 'test', args.output_dir)
-    
+
+    save_split(test_pairs, 'test', args.output_dir) 
     print(f"\n✓ Created in: {args.output_dir}/")
-    print(f"\nSplit sizes:")
-    print(f"  Train: {len(train_pairs):,} pairs")
-    print(f"  Valid: {len(valid_pairs):,} pairs")
-    print(f"  Test:  {len(test_pairs):,} pairs")
-    
     return 0
 
 
