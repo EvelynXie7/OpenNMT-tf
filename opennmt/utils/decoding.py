@@ -190,7 +190,7 @@ class DecodingStrategy(abc.ABC):
         beam_size = params.get("beam_width", 1)
         if beam_size > 1:
             if inc_rate == 0: 
-                tf.print(f"Using BeamSearch: width={beam_size}")
+                #                tf.print(f"Using BeamSearch: width={beam_size}")
                 return BeamSearch(
                     beam_size,
                     length_penalty=params.get("length_penalty", 0),
@@ -200,7 +200,7 @@ class DecodingStrategy(abc.ABC):
                     else None,
                 )
             else:
-                tf.print(f"Using DynamicBeamSearch: min_width={min_beam_size} max_width={beam_size} rate={inc_rate}")
+                #                tf.print(f"Using DynamicBeamSearch: min_width={min_beam_size} max_width={beam_size} rate={inc_rate}")
                 return DynamicBeamSearch(
                     min_beam_size,
                     beam_size,
@@ -212,7 +212,7 @@ class DecodingStrategy(abc.ABC):
                     else None,
                 )
         else:
-            tf.print(f"Using GreedySearch")
+            #            tf.print(f"Using GreedySearch")
             return GreedySearch()
 
     @abc.abstractmethod
@@ -512,7 +512,11 @@ class BeamSearch(DecodingStrategy):
         return ids, attention, lengths
 
 class DynamicBeamSearch(DecodingStrategy):
-    """A beam search strategy."""
+    """A Modifed beam search strategy.
+
+    Linearlly increments/decrements the beam size by some specified rate (width/step) 
+
+    """
 
     def __init__(
         self, min_beam_size, beam_size, rate, length_penalty=0, coverage_penalty=0, tflite_output_size=None
@@ -520,7 +524,9 @@ class DynamicBeamSearch(DecodingStrategy):
         """Initializes the decoding strategy.
 
         Args:
+          min_beam_size: The minimum number of paths to consider per batch.
           beam_size: The number of paths to consider per batch.
+          rate: The rate at which the current beam size is increased/decreased 
           length_penalty: Length penalty, see https://arxiv.org/abs/1609.08144.
           coverage_penalty: Coverage penalty, see https://arxiv.org/abs/1609.08144.
           tflite_output_size: None if not TFLite exporting.  Is the output size of TFLite model
@@ -612,16 +618,18 @@ class DynamicBeamSearch(DecodingStrategy):
     ):
         parent_ids = kwargs["parent_ids"]
         sequence_lengths = kwargs["sequence_lengths"]
+
+        # calculate the step size to change
         step_float = tf.cast(step, dtype=tf.float32)
         inc = step_float * self.rate
         inc_rounded = tf.round(inc) 
         inc_int32 = tf.cast(inc_rounded, dtype=tf.int32)
 
+        # get the current_beam_width 
         if self.rate > 0: 
             current_beam_width = tf.minimum(self.min_beam_size + inc_int32, self.beam_size) 
         else: 
             current_beam_width = tf.maximum(self.beam_size + inc_int32, self.min_beam_size) 
-
 
         if self.coverage_penalty != 0:
             if attention is None:
@@ -639,6 +647,7 @@ class DynamicBeamSearch(DecodingStrategy):
         vocab_size = log_probs.shape[-1]
 
         # create a mask to only consider current_beam_width many beams 
+        # zeros out beams that did not make the cut  
         reshaped_cum_log_probs = tf.reshape(cum_log_probs, [-1, self.beam_size])
         _, indices = tf.nn.top_k(reshaped_cum_log_probs, k=current_beam_width, sorted=True)
         one_hot_mask = tf.one_hot(indices, depth=self.beam_size, dtype=tf.uint32)
@@ -650,6 +659,7 @@ class DynamicBeamSearch(DecodingStrategy):
         )
         reshaped_masked_cum_log_probs = tf.reshape(masked_cum_log_probs, [-1])
         
+        # use the masked_cum_log_probs instead of cum_log_probs
         total_probs = log_probs + tf.expand_dims(
             reshaped_masked_cum_log_probs, 1
         )  # Add current masked beam probability.
